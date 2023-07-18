@@ -4,8 +4,15 @@
 
 import { config } from "dotenv";
 import { Octokit } from "octokit";
+import { NodeCompiler } from "./compilers/node";
+import { CargoCompiler } from "./compilers/cargo";
 
 config();
+
+const compilers = [
+	NodeCompiler,
+	CargoCompiler,
+]
 
 const main = async () => {
 	if (!process.env.GH_TOKEN)
@@ -19,7 +26,26 @@ const main = async () => {
 		org: process.env.GH_ORG as string
 	});
 
-	console.log(repos);
+	for (const repo of repos.data) {
+		console.log(`${repo.full_name} - Running...`);
+
+		for (const compiler of compilers) {
+			console.log(`    ${compiler.name}...`);
+
+			const Compiler = new compiler(
+				octokit, 
+				repo.owner.login, 
+				repo.name
+			);
+
+			try {
+				await Compiler.compile(repo.default_branch || "main");
+			} catch(e: any) {
+				console.error(`${repo.full_name}: Failed to compile licenses for this project!`, e.stack);
+				process.exit(1);
+			}
+		}
+	}
 };
 
 main();
