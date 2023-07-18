@@ -1,0 +1,22 @@
+{
+  "name": "licence-compiler",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "https://github.com/dothq/licence-compiler.git",
+  "author": "Dot HQ <contact@dothq.org>",
+  "license": "MPL2.0",
+  "private": true,
+  "dependencies": {
+    "dotenv": "^16.3.1",
+    "octokit": "^3.0.0",
+    "typescript": "^5.1.6"
+  },
+  "devDependencies": {
+    "esbuild": "^0.18.14",
+    "prettier": "^3.0.0"
+  },
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --outdir=dist",
+    "watch": "esbuild src/index.ts --bundle --platform=node --outdir=dist --watch"
+  }
+}
