@@ -18,7 +18,9 @@ const NPM_INSTALL_PREFIXES = [NPMPrefixes.GitHub];
 
 export class NodeService extends DependencyService {
 	public compile(treeSha: string) {
-		return super.compile(treeSha, "**/package.json");
+		return super.compile(treeSha, "**/package.json", [
+			"**/node_modules"
+		]);
 	}
 
 	private async _lookupPackage(
@@ -123,6 +125,12 @@ export class NodeService extends DependencyService {
 
 		for await (const [dep, ver] of Object.entries(dependencies)) {
 			try {
+				console.log(
+					`            ${dep}@${ver}${
+						isDev ? " (dev)" : ""
+					}`
+				);
+
 				for await (const uri of (
 					process.env.NPM_REGISTRY_URLS || ""
 				).split(",")) {
@@ -131,12 +139,6 @@ export class NodeService extends DependencyService {
 							"No NPM registry URLs provided."
 						);
 					}
-
-					console.log(
-						`        ${dep}@${ver}${
-							isDev ? " (dev)" : ""
-						}`
-					);
 
 					const [extractor, packageJson] =
 						await this._lookupPackage(uri, dep, ver);

@@ -26,7 +26,11 @@ export class DependencyService {
 		public repo: string
 	) {}
 
-	public async compile(treeSha: string, filePathGlob: string) {
+	public async compile(
+		treeSha: string,
+		filePathGlob: string,
+		excludedGlobs?: string[]
+	) {
 		const tree = await this.octokit.request(
 			"GET /repos/{org}/{repo}/git/trees/{tree_sha}?recursive=1",
 			{
@@ -37,9 +41,16 @@ export class DependencyService {
 		);
 
 		const files = tree.data.tree;
-		const matches: RemoteFile[] = files.filter((f: RemoteFile) =>
-			minimatch(f.path, filePathGlob)
-		);
+		const matches: RemoteFile[] = files
+			.filter((f: RemoteFile) =>
+				minimatch(f.path, filePathGlob)
+			)
+			.filter(
+				(f: RemoteFile) =>
+					!excludedGlobs
+						?.map((g) => minimatch(f.path, g))
+						.includes(true)
+			);
 
 		const data = [];
 
@@ -72,6 +83,8 @@ export class DependencyService {
 				fileRes.data.content,
 				"base64"
 			);
+
+			console.log(`        /${match.path}`);
 
 			const licenses = (await (this as any).process({
 				...match,
@@ -153,6 +166,7 @@ export class DependencyService {
 				repo_name: `${this.owner}/${this.repo}`,
 				tree: treeSha,
 				service: this.constructor.name,
+				manifest_file: "/" + match.path,
 				dependencies: repositoryDependencies
 			});
 		}
