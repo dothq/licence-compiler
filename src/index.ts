@@ -51,8 +51,12 @@ const main = async () => {
 
 	const data: Record<string, any[]> = {};
 
+	var i = 0;
 	for (const repo of repos) {
-		console.log(`${repo.full_name} - Running...`);
+		i++;
+		console.log(
+			`${repo.full_name} - Running... (${i}/${repos.length})`
+		);
 
 		data[repo.full_name] = [];
 
