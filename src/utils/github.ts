@@ -5,10 +5,10 @@
 import { Octokit } from "octokit";
 
 export const getOctokit = () => {
-    if (!process.env.GH_TOKEN)
+	if (!process.env.GH_TOKEN)
 		throw new Error("No GH_TOKEN provided");
 
 	const octokit = new Octokit({ auth: process.env.GH_TOKEN });
 
-    return octokit;
-}
+	return octokit;
+};

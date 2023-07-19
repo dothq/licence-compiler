@@ -3,49 +3,64 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import axios from "axios";
-import { Extractor } from ".";
-import { writeFile } from "fs-extra";
-import { basename, parse, resolve } from "path";
-import { arch, tmpdir } from "os";
-import tar from "tar";
-import { minimatch } from "minimatch";
-import { ensureDir } from "fs-extra";
-import { extractorOutDir } from "..";
 import compressing from "compressing";
+import { existsSync } from "fs";
+import { ensureDir, writeFile } from "fs-extra";
+import { readdir, rename } from "fs/promises";
+import { parse, resolve } from "path";
+import { Extractor } from ".";
+import { extractorOutDir } from "..";
 
 export class TarGZipExtractor extends Extractor {
-    constructor(archivePath: string, outDir: string) {
-        super();
+	constructor(archivePath: string, outDir: string) {
+		super();
 
-        this.outDir = outDir;
-    }
+		this.outDir = outDir;
+	}
 
-    public async extract(archivePath: string, outDir: string) {
-        await compressing.tgz.uncompress(archivePath, outDir);
-    }
+	public async extract(archivePath: string, outDir: string) {
+		const dirs = await readdir(outDir);
+		await compressing.tgz.uncompress(archivePath, outDir);
+		const newDirs = await readdir(outDir);
 
-    static async download(uri: string) {
-        const outDir = resolve(
-            extractorOutDir,
-            parse(uri).name
-        );
+		// Rubbish way of getting the extract dir
+		// Using intersection to find the new created dir
+		const extractDir = newDirs.filter(
+			(x) => dirs.indexOf(x) === -1
+		)[0];
 
-        await ensureDir(outDir);
+		if (
+			extractDir !== "package" &&
+			!existsSync(resolve(outDir, "package"))
+		) {
+			await rename(
+				resolve(outDir, extractDir),
+				resolve(outDir, "package")
+			);
+		}
+	}
 
-        const archivePath = resolve(
-            outDir, 
-            `package${parse(uri).ext}`
-        );
+	static async download(uri: string) {
+		const outDir = resolve(extractorOutDir, parse(uri).name);
 
-        await new Promise(async (res) => {
-            const resp = await axios.get(uri, { responseType: "arraybuffer" });
-            await writeFile(archivePath, resp.data);
-            res(1);
-        });
+		await ensureDir(outDir);
 
-        const instance = new TarGZipExtractor(archivePath, outDir);
-        await instance.extract(archivePath, outDir);
+		const archivePath = resolve(
+			outDir,
+			`package${parse(uri).ext}`
+		);
 
-        return instance;
-    }
+		await new Promise(async (res) => {
+			const resp = await axios.get(uri, {
+				responseType: "arraybuffer"
+			});
+			await writeFile(archivePath, resp.data);
+			res(1);
+		});
+
+		const instance = new TarGZipExtractor(archivePath, outDir);
+		await instance.extract(archivePath, outDir);
+
+		return instance;
+	}
 }

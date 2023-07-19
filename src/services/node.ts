@@ -2,15 +2,12 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+import axios from "axios";
+import { readFile } from "fs/promises";
 import { maxSatisfying } from "semver";
 import { DependencyService, RemoteFile } from ".";
-import axios from "axios";
-import { TarGZipExtractor } from "../extractors/tar-gzip";
-import { minimatch } from "minimatch";
-import { Extractor } from "../extractors";
 import { GitExtractor } from "../extractors/git";
-import { readFile } from "fs/promises";
-import { extractorOutDir } from "..";
+import { TarGZipExtractor } from "../extractors/tar-gzip";
 import { getLicenseFileFromSPDX } from "../utils/spdx";
 
 enum NPMPrefixes {

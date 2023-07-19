@@ -2,9 +2,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-import axios from "axios";
+import correct from "spdx-correct";
 import { getOctokit } from "./github";
-import { minimatch } from "minimatch";
 
 export const getLicenseFileFromSPDX = async (spdx: string) => {
 	const octokit = getOctokit();
@@ -37,6 +36,10 @@ export const getLicenseFileFromSPDX = async (spdx: string) => {
 			tree_sha: rawTextTree.sha!
 		}
 	);
+
+	if (correct(spdx)) {
+		spdx = correct(spdx)!;
+	}
 
 	let foundLicense = textTree.data.tree.find(
 		(text) =>

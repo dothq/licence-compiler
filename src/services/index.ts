@@ -2,11 +2,11 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-import { Octokit } from "octokit";
-import { minimatch } from "minimatch";
 import axios from "axios";
 import { existsSync } from "fs";
 import { readFile } from "fs/promises";
+import { minimatch } from "minimatch";
+import { Octokit } from "octokit";
 import { extractorOutDir } from "..";
 
 export interface RemoteFile {
