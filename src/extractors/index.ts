@@ -17,6 +17,6 @@ export class Extractor {
 			join(this.outDir, this.LICENSE_PATTERN)
 		);
 
-		return matches.map((path) => path.split(this.outDir)[1]);
+		return matches;
 	}
 }

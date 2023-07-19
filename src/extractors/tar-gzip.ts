@@ -4,7 +4,9 @@
 
 import axios from "axios";
 import compressing from "compressing";
+import { existsSync } from "fs";
 import { ensureDir, writeFile } from "fs-extra";
+import { readdir, rename } from "fs/promises";
 import { parse, resolve } from "path";
 import { Extractor } from ".";
 import { extractorOutDir } from "..";
@@ -17,7 +19,25 @@ export class TarGZipExtractor extends Extractor {
 	}
 
 	public async extract(archivePath: string, outDir: string) {
+		const dirs = await readdir(outDir);
 		await compressing.tgz.uncompress(archivePath, outDir);
+		const newDirs = await readdir(outDir);
+
+		// Rubbish way of getting the extract dir
+		// Using intersection to find the new created dir
+		const extractDir = newDirs.filter(
+			(x) => dirs.indexOf(x) === -1
+		)[0];
+
+		if (
+			extractDir !== "package" &&
+			!existsSync(resolve(outDir, "package"))
+		) {
+			await rename(
+				resolve(outDir, extractDir),
+				resolve(outDir, "package")
+			);
+		}
 	}
 
 	static async download(uri: string) {
