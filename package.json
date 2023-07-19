@@ -17,6 +17,7 @@
     "octokit": "^3.0.0",
     "rimraf": "^5.0.1",
     "semver": "^7.5.4",
+    "spdx-correct": "^3.2.0",
     "tar": "^6.1.15",
     "toml": "^3.0.0",
     "typescript": "^5.1.6"
@@ -26,6 +27,7 @@
     "@types/node": "^20.4.2",
     "@types/rimraf": "^4.0.5",
     "@types/semver": "^7.5.0",
+    "@types/spdx-correct": "^3.1.0",
     "@types/tar": "^6.1.5",
     "esbuild": "^0.18.14",
     "prettier": "^3.0.0"
