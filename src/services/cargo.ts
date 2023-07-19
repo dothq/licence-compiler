@@ -6,7 +6,7 @@ import axios from "axios";
 import { readFile } from "fs/promises";
 import { join } from "path";
 import { maxSatisfying } from "semver";
-import { parse } from "toml";
+import toml, { parse } from "toml";
 import { DependencyService, RemoteFile } from ".";
 import { GitExtractor } from "../extractors/git";
 import { TarGZipExtractor } from "../extractors/tar-gzip";
@@ -40,7 +40,7 @@ export class CargoService extends DependencyService {
 					"utf-8"
 				);
 
-				cargoToml = JSON.parse(data);
+				cargoToml = toml.parse(data);
 			}
 		} else {
 			const res = await axios.get(
