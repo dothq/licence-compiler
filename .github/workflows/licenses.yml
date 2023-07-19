@@ -1,0 +1,50 @@
+name: Generate metadata
+
+on:
+    push:
+    workflow_dispatch:
+    schedule:
+        - cron: 0 0 * * * # every day at 00:00
+
+jobs:
+    generate:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v3
+              with:
+                  path: license-compiler
+
+            - name: Install dependencies
+              run: yarn
+
+            - name: Locate licenses
+              env:
+                  GH_TOKEN: ${{ secrets.ROBOT_TOKEN }}
+                  GH_ORG: ${{ github.repository_owner }}
+
+                  NPM_REGISTRY_URLS: https://registry.npmjs.org
+                  CRATES_REGISTRY_URLS: https://crates.io
+              run: |
+                  yarn build
+                  yarn start
+
+            - uses: actions/checkout@v3
+              with:
+                  repository: ${{ github.repository_owner }}/third-party-licenses
+                  path: third-party-licenses
+
+            - name: Update dependency metadata
+              working-directory: third-party-licenses
+              run: |
+                  rm -rf ./data
+                  mv ../license-compiler/dep-data ./data
+                  git add data
+
+            - name: Commit & Push changes
+              uses: actions-js/push@master
+              with:
+                  github_token: ${{ secrets.ROBOT_TOKEN }}
+                  author_email: dothq-robot@users.noreply.github.com
+                  author_name: dothq-robot
+                  message: "📄 Update license data"
+                  directory: third-party-licenses
