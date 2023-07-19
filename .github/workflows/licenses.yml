@@ -35,7 +35,7 @@ jobs:
               working-directory: third-party-licenses
               run: |
                   rm -rf ./data
-                  mv ../license-compiler/dep-data ./data
+                  mv ../dep-data ./data
                   git add data
 
             - name: Commit & Push changes
