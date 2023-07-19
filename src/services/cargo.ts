@@ -2,16 +2,62 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+import axios from "axios";
+import { join } from "path";
+import { maxSatisfying } from "semver";
 import { parse } from "toml";
 import { DependencyService, RemoteFile } from ".";
+import { TarGZipExtractor } from "../extractors/tar-gzip";
+import { getLicenseFileFromSPDX } from "../utils/spdx";
 
 export class CargoService extends DependencyService {
 	public compile(treeSha: string) {
 		return super.compile(treeSha, "**/Cargo.toml");
 	}
 
-	private async _lookupPackage(dep: string, ver: string) {
-		return [null];
+	private async _lookupPackage(
+		registryURI: string,
+		dep: string,
+		ver: string
+	) {
+		let extractor;
+		let cargoToml;
+
+		const res = await axios.get(
+			`${registryURI}/api/v1/crates/${dep}/versions`
+		);
+		if (!res.data.versions) {
+			console.warn(
+				`No available versions for '${dep}@${ver}', skipping...`
+			);
+			return [null, null];
+		}
+
+		const allVersions = res.data.versions.map((p: any) => p.num);
+		const maxVersion = maxSatisfying(allVersions, ver);
+
+		if (
+			!maxVersion ||
+			!res.data.versions.find((p: any) => p.num == maxVersion)
+		) {
+			console.warn(
+				`No available versions for '${dep}@${ver}', skipping...`
+			);
+			return [null, null];
+		}
+
+		const versionedPackage = res.data.versions.find(
+			(p: any) => p.num == maxVersion
+		);
+
+		const downloadTarballURI = versionedPackage.dl_path;
+
+		extractor = await TarGZipExtractor.download(
+			join(registryURI, downloadTarballURI)
+		);
+		cargoToml = res.data;
+
+		return [extractor, cargoToml];
 	}
 
 	private async processDependencies(
@@ -37,23 +83,57 @@ export class CargoService extends DependencyService {
 
 			try {
 				console.log(
-					`        ${dep}@${version}${
+					`            ${dep}@${version}${
 						isDev ? " (dev)" : ""
 					}`
 				);
 
-				const [extractor] = await this._lookupPackage(
-					dep,
-					version
-				);
-				if (!extractor) continue;
+				for await (const uri of (
+					process.env.CRATES_REGISTRY_URLS || ""
+				).split(",")) {
+					if (!uri || !uri.length) {
+						throw new Error(
+							"No Crates registry URLs provided."
+						);
+					}
 
-				licenses.set(
-					`${dep}@${version}`,
-					(licenses.get(`${dep}@${version}`) || []).concat(
-						[]
-					)
-				);
+					const [extractor, cargoToml] =
+						await this._lookupPackage(uri, dep, version);
+					if (!extractor || !cargoToml) continue;
+
+					const licenseMatches = await extractor.locate();
+
+					if (
+						licenseMatches.length == 0 &&
+						cargoToml &&
+						cargoToml.license &&
+						typeof cargoToml.license == "string"
+					) {
+						const spdxLicense = cargoToml.license;
+
+						try {
+							const licensePath =
+								await getLicenseFileFromSPDX(
+									spdxLicense
+								);
+
+							licenseMatches.push(licensePath);
+						} catch (error) {
+							licenseMatches.push(spdxLicense);
+						}
+					}
+
+					licenses.set(
+						`${dep}@${cargoToml.version || version}`,
+						(
+							licenses.get(
+								`${dep}@${
+									cargoToml.version || version
+								}`
+							) || []
+						).concat(licenseMatches)
+					);
+				}
 			} catch (e) {
 				console.error(
 					`Failed to obtain package information for '${dep}@${version}'.`
