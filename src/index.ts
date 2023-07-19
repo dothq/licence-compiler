@@ -31,18 +31,27 @@ const main = async () => {
 	await rimraf(repoDepsOutDir);
 	await ensureDir(repoDepsOutDir);
 
-	const repos = await octokit.request("GET /orgs/{org}/repos", {
-		org: process.env.GH_ORG as string,
-		type: "all"
-	});
+	const repos = [];
 
-	const allowedRepos = repos.data.filter(
-		(repo) => repo.visibility == "public"
-	);
+	for await (const res of octokit.paginate.iterator(
+		"GET /orgs/{org}/repos",
+		{
+			org: process.env.GH_ORG as string,
+			sort: "updated",
+			type: "all",
+			per_page: 100
+		}
+	)) {
+		for (const repo of res.data) {
+			if (repo.visibility !== "public") continue;
+
+			repos.push(repo);
+		}
+	}
 
 	const data: Record<string, any[]> = {};
 
-	for (const repo of allowedRepos) {
+	for (const repo of repos) {
 		console.log(`${repo.full_name} - Running...`);
 
 		data[repo.full_name] = [];
