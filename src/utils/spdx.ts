@@ -27,8 +27,13 @@ export const getLicenseFileFromSPDX = async (spdx: string) => {
         tree_sha: rawTextTree.sha!
     });
 
-    const foundLicense = textTree.data.tree.find(text => minimatch(text.path!, spdx + ".txt"));
-    if (!foundLicense) throw new Error(`No SPDX license with identifier '${spdx}'!`);
+    let foundLicense = textTree.data.tree.find(text => text.path?.toLowerCase() == `${spdx.toLowerCase()}.txt`);
+    if (!foundLicense) {
+        foundLicense = textTree.data.tree.find(text => text.path?.toLowerCase() == `${spdx.toLowerCase()}-only.txt`);
+    }
+    if (!foundLicense) {
+        throw new Error(`No SPDX license with identifier '${spdx}'!`);
+    }
 
     return `https://raw.githubusercontent.com/spdx/license-list-data/main/text/${foundLicense.path}`;
 }
