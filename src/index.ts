@@ -32,12 +32,17 @@ const main = async () => {
 	await ensureDir(repoDepsOutDir);
 
 	const repos = await octokit.request("GET /orgs/{org}/repos", {
-		org: process.env.GH_ORG as string
+		org: process.env.GH_ORG as string,
+		type: "all"
 	});
+
+	const allowedRepos = repos.data.filter(
+		(repo) => repo.visibility == "public"
+	);
 
 	const data: Record<string, any[]> = {};
 
-	for (const repo of repos.data) {
+	for (const repo of allowedRepos) {
 		console.log(`${repo.full_name} - Running...`);
 
 		data[repo.full_name] = [];
