@@ -17,7 +17,9 @@ export class Extractor {
 
 		for (const PATTERN of this.LICENSE_PATTERNS) {
 			matches = matches.concat(
-				await glob(join(this.outDir, PATTERN))
+				await glob(join(this.outDir, PATTERN), {
+					nocase: true
+				})
 			);
 		}
 
