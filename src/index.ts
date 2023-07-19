@@ -3,32 +3,22 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import { config } from "dotenv";
-import { Octokit } from "octokit";
-import { NodeService } from "./services/node";
-import { CargoService } from "./services/cargo";
-import { parse, resolve } from "path";
-import { tmpdir } from "os";
-import { rimraf } from "rimraf";
 import { ensureDir } from "fs-extra";
-import { getOctokit } from "./utils/github";
 import { writeFile } from "fs/promises";
+import { tmpdir } from "os";
+import { parse, resolve } from "path";
+import { rimraf } from "rimraf";
+import { CargoService } from "./services/cargo";
+import { NodeService } from "./services/node";
+import { getOctokit } from "./utils/github";
 
 config();
 
-const services = [
-	NodeService,
-	CargoService,
-]
+const services = [NodeService, CargoService];
 
-export const extractorOutDir = resolve(
-	tmpdir(), 
-    "license-compiler"
-)
+export const extractorOutDir = resolve(tmpdir(), "license-compiler");
 
-const repoDepsOutDir = resolve(
-	process.cwd(),
-	"dep-data"
-)
+const repoDepsOutDir = resolve(process.cwd(), "dep-data");
 
 const main = async () => {
 	const octokit = getOctokit();
@@ -56,21 +46,29 @@ const main = async () => {
 			console.log(`    ${service.name}...`);
 
 			const Service = new service(
-				octokit, 
-				repo.owner.login, 
+				octokit,
+				repo.owner.login,
 				repo.name
 			);
 
 			try {
-				const metadata = await Service.compile(repo.default_branch || "main");
+				const metadata = await Service.compile(
+					repo.default_branch || "main"
+				);
 
-				data[repo.full_name] = data[repo.full_name].concat(metadata);
-			} catch(e: any) {
-				console.error(`${repo.full_name}: Failed to compile licenses for this project!`, e.stack);
+				data[repo.full_name] =
+					data[repo.full_name].concat(metadata);
+			} catch (e: any) {
+				console.error(
+					`${repo.full_name}: Failed to compile licenses for this project!`,
+					e.stack
+				);
 			}
 		}
 
-		await ensureDir(resolve(repoDepsOutDir, `${parse(repo.full_name).dir}`))
+		await ensureDir(
+			resolve(repoDepsOutDir, `${parse(repo.full_name).dir}`)
+		);
 
 		await writeFile(
 			resolve(repoDepsOutDir, `${repo.full_name}.json`),

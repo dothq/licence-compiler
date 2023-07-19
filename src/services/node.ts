@@ -2,15 +2,12 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+import axios from "axios";
+import { readFile } from "fs/promises";
 import { maxSatisfying } from "semver";
 import { DependencyService, RemoteFile } from ".";
-import axios from "axios";
-import { TarGZipExtractor } from "../extractors/tar-gzip";
-import { minimatch } from "minimatch";
-import { Extractor } from "../extractors";
 import { GitExtractor } from "../extractors/git";
-import { readFile } from "fs/promises";
-import { extractorOutDir } from "..";
+import { TarGZipExtractor } from "../extractors/tar-gzip";
 import { getLicenseFileFromSPDX } from "../utils/spdx";
 
 enum NPMPrefixes {
@@ -24,11 +21,19 @@ export class NodeService extends DependencyService {
 		return super.compile(treeSha, "**/package.json");
 	}
 
-	private async _lookupPackage(registryURI: string, pkg: string, version: string) {
+	private async _lookupPackage(
+		registryURI: string,
+		pkg: string,
+		version: string
+	) {
 		let extractor;
 		let packageJson;
 
-		if (NPM_INSTALL_PREFIXES.findIndex(p => version.startsWith(p + ":")) >= 0) {
+		if (
+			NPM_INSTALL_PREFIXES.findIndex((p) =>
+				version.startsWith(p + ":")
+			) >= 0
+		) {
 			const prefix = version.split(":")[0];
 			const value = version.split(`${prefix}:`)[1];
 
@@ -42,49 +47,67 @@ export class NodeService extends DependencyService {
 					const [repo, ref] = isTag
 						? repoWithRef.split("@")
 						: isRef
-							? repoWithRef.split("#")
-							: repoWithRef;
+						? repoWithRef.split("#")
+						: repoWithRef;
 
-					extractor = await GitExtractor.fetch(`https://github.com/${owner}/${repo}.git`, ref);
-				
-					const pjsonMatches = await extractor.getFile("./package.json");
+					extractor = await GitExtractor.fetch(
+						`https://github.com/${owner}/${repo}.git`,
+						ref
+					);
+
+					const pjsonMatches = await extractor.getFile(
+						"./package.json"
+					);
 
 					if (pjsonMatches[0]) {
-						const data = await readFile(pjsonMatches[0], "utf-8");
+						const data = await readFile(
+							pjsonMatches[0],
+							"utf-8"
+						);
 
 						packageJson = JSON.parse(data);
 					}
 
 					break;
 				default:
-					console.warn(`Unsupported fetch prefix '${prefix}' for '${pkg}@${version}', skipping...`);
+					console.warn(
+						`Unsupported fetch prefix '${prefix}' for '${pkg}@${version}', skipping...`
+					);
 					return [null, null];
 			}
 		} else {
 			const res = await axios.get(`${registryURI}/${pkg}`);
 			if (!res.data.versions) {
-				console.warn(`No available versions for '${pkg}@${version}', skipping...`);
+				console.warn(
+					`No available versions for '${pkg}@${version}', skipping...`
+				);
 				return [null, null];
 			}
-	
+
 			const allVersions = Object.keys(res.data.versions);
 			const maxVersion = maxSatisfying(allVersions, version);
-	
+
 			if (!maxVersion || !(maxVersion in res.data.versions)) {
-				console.warn(`No available versions for '${pkg}@${version}', skipping...`);
+				console.warn(
+					`No available versions for '${pkg}@${version}', skipping...`
+				);
 				return [null, null];
 			}
-	
+
 			const versionedPackage = res.data.versions[maxVersion];
-	
+
 			const downloadTarballURI = versionedPackage.dist.tarball;
-	
+
 			if (!downloadTarballURI) {
-				console.warn(`No available tarball for '${pkg}@${version}', skipping...`);
+				console.warn(
+					`No available tarball for '${pkg}@${version}', skipping...`
+				);
 				return [null, null];
 			}
-	
-			extractor = await TarGZipExtractor.download(downloadTarballURI);
+
+			extractor = await TarGZipExtractor.download(
+				downloadTarballURI
+			);
 			packageJson = res.data;
 			packageJson.version = maxVersion;
 		}
@@ -92,19 +115,31 @@ export class NodeService extends DependencyService {
 		return [extractor, packageJson];
 	}
 
-	private async processDependencies(dependencies: Record<string, string>, isDev?: boolean) {
+	private async processDependencies(
+		dependencies: Record<string, string>,
+		isDev?: boolean
+	) {
 		let licenses: Map<string, string[]> = new Map();
 
 		for await (const [dep, ver] of Object.entries(dependencies)) {
 			try {
-				for await (const uri of (process.env.NPM_REGISTRY_URLS || "").split(",")) {
+				for await (const uri of (
+					process.env.NPM_REGISTRY_URLS || ""
+				).split(",")) {
 					if (!uri || !uri.length) {
-						throw new Error("No NPM registry URLs provided.");
+						throw new Error(
+							"No NPM registry URLs provided."
+						);
 					}
 
-					console.log(`        ${dep}@${ver}${isDev ? " (dev)" : ""}`)
+					console.log(
+						`        ${dep}@${ver}${
+							isDev ? " (dev)" : ""
+						}`
+					);
 
-					const [extractor, packageJson] = await this._lookupPackage(uri, dep, ver);
+					const [extractor, packageJson] =
+						await this._lookupPackage(uri, dep, ver);
 					if (!extractor || !packageJson) continue;
 
 					const licenseMatches = await extractor.locate();
@@ -113,19 +148,29 @@ export class NodeService extends DependencyService {
 						licenseMatches.length == 0 &&
 						packageJson &&
 						packageJson.license &&
-						typeof (packageJson.license) == "string"
+						typeof packageJson.license == "string"
 					) {
 						const spdxLicense = packageJson.license;
 
-						const licensePath = await getLicenseFileFromSPDX(spdxLicense);
+						const licensePath =
+							await getLicenseFileFromSPDX(spdxLicense);
 
 						licenseMatches.push(licensePath);
 					}
 
-					licenses.set(`${dep}@${packageJson.version || ver}`, (licenses.get(`${dep}@${packageJson.version || ver}`) || []).concat(licenseMatches));
+					licenses.set(
+						`${dep}@${packageJson.version || ver}`,
+						(
+							licenses.get(
+								`${dep}@${packageJson.version || ver}`
+							) || []
+						).concat(licenseMatches)
+					);
 				}
-			} catch(e) {
-				console.error(`Failed to obtain package information for '${dep}@${ver}'.`);
+			} catch (e) {
+				console.error(
+					`Failed to obtain package information for '${dep}@${ver}'.`
+				);
 				throw e;
 			}
 		}
@@ -140,16 +185,17 @@ export class NodeService extends DependencyService {
 		let licenses: Map<string, string[]> = new Map();
 
 		if (json.dependencies) {
-			const depsMap = (
-				await this.processDependencies(json.dependencies)
+			const depsMap = await this.processDependencies(
+				json.dependencies
 			);
 
 			licenses = new Map([...licenses, ...depsMap]);
 		}
 
 		if (json.devDependencies) {
-			const devDepsMap = (
-				await this.processDependencies(json.devDependencies, true)
+			const devDepsMap = await this.processDependencies(
+				json.devDependencies,
+				true
 			);
 
 			licenses = new Map([...licenses, ...devDepsMap]);

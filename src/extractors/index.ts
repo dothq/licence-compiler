@@ -6,15 +6,17 @@ import { glob } from "glob";
 import { join } from "path";
 
 export class Extractor {
-    LICENSE_PATTERN = "**/LICENSE"
+	LICENSE_PATTERN = "**/LICENSE";
 
-    outDir = ""
+	outDir = "";
 
-    public constructor() {}
+	public constructor() {}
 
-    public async locate() {
-        const matches = await glob(join(this.outDir, this.LICENSE_PATTERN));
+	public async locate() {
+		const matches = await glob(
+			join(this.outDir, this.LICENSE_PATTERN)
+		);
 
-        return matches;
-    }
+		return matches.map((path) => path.split(this.outDir)[1]);
+	}
 }
