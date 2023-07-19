@@ -105,8 +105,10 @@ export class CargoService extends DependencyService {
 			if (typeof data == "string") {
 				version = data;
 			} else if (typeof data == "object") {
-				if (data.git && data.rev) {
-					version = `git:${data.git}#${data.rev}`;
+				if (data.git) {
+					version = `git:${data.git}#${
+						data.branch || data.rev
+					}`;
 				} else if (data.version) {
 					version = data.version;
 				}
