@@ -147,7 +147,15 @@ export class CargoService extends DependencyService {
 					) {
 						const spdxLicense = cargoToml.license;
 
-						const licenses = spdxLicense.split("/");
+						let licenses: string[] = [spdxLicense];
+
+						if (spdxLicense.includes("/")) {
+							licenses = spdxLicense.split("/");
+						} else if (spdxLicense.includes(" or ")) {
+							licenses = spdxLicense.split(" or ");
+						} else if (spdxLicense.includes(" OR ")) {
+							licenses = spdxLicense.split(" OR ");
+						}
 
 						const newLics = [];
 						let pushedFullLicense = false;
