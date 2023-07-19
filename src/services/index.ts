@@ -132,14 +132,30 @@ export class DependencyService {
 							relativePath =
 								"/" +
 								relativePath.split("/package/")[1];
+						} else if (
+							!relativePath.includes("/package/") &&
+							relativePath.includes(
+								`/${data.dependency.name}/`
+							)
+						) {
+							// Some packages will be structured like /tmp/license-compiler/fs-extra-5.1.0/fs-extra
+							// Rather than /tmp/license-compiler/fs-extra-5.1.0/package
+							// So account for that here
+
+							relativePath =
+								"/" +
+								relativePath.split(
+									`/${data.dependency.name}/`
+								)[1];
 						}
 
 						depLicense.path = relativePath;
 					} else {
 						console.warn(
-							`${this.owner}/${this.repo}: Unable to fetch license information for '${data.dependency.name}' at '${license}', skipping...`
+							`${this.owner}/${this.repo}: Unable to automatically obtain license information for '${data.dependency.name}' at '${license}', falling back to package provided license field.`
 						);
-						continue;
+						depLicense.data = license;
+						depLicense.path = "/";
 					}
 
 					data.licenses.push(depLicense);

@@ -152,10 +152,16 @@ export class NodeService extends DependencyService {
 					) {
 						const spdxLicense = packageJson.license;
 
-						const licensePath =
-							await getLicenseFileFromSPDX(spdxLicense);
+						try {
+							const licensePath =
+								await getLicenseFileFromSPDX(
+									spdxLicense
+								);
 
-						licenseMatches.push(licensePath);
+							licenseMatches.push(licensePath);
+						} catch (error) {
+							licenseMatches.push(spdxLicense);
+						}
 					}
 
 					licenses.set(
