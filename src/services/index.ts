@@ -77,8 +77,8 @@ export class DependencyService {
 					licenses: { path: string; data: string }[]
 				} = {
 					dependency: {
-						name: depWithVer.split("@")[0],
-						version: depWithVer.split("@")[1],
+						name: depWithVer.substring(0, depWithVer.lastIndexOf("@")),
+						version: depWithVer.substring(depWithVer.lastIndexOf("@") + 1, depWithVer.length),
 					},
 					licenses: []
 				};
