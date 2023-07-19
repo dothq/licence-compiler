@@ -12,6 +12,7 @@
     "minimatch": "^9.0.3",
     "octokit": "^3.0.0",
     "semver": "^7.5.4",
+    "toml": "^3.0.0",
     "typescript": "^5.1.6"
   },
   "devDependencies": {
