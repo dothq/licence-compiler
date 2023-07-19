@@ -18,9 +18,28 @@ export class TarGZipExtractor extends Extractor {
 		this.outDir = outDir;
 	}
 
-	public async extract(archivePath: string, outDir: string) {
+	public async extract(
+		archivePath: string,
+		outDir: string,
+		extractor: keyof typeof compressing
+	) {
+		if (extractor == "gzip") {
+			await compressing[extractor].uncompress(
+				archivePath,
+				archivePath + ".ungzip"
+			);
+		}
+
 		const dirs = await readdir(outDir);
-		await compressing.tgz.uncompress(archivePath, outDir);
+
+		await compressing[
+			extractor == "gzip" ? "tar" : extractor
+		].uncompress(
+			extractor == "gzip"
+				? archivePath + ".ungzip"
+				: archivePath,
+			outDir
+		);
 		const newDirs = await readdir(outDir);
 
 		// Rubbish way of getting the extract dir
@@ -40,7 +59,10 @@ export class TarGZipExtractor extends Extractor {
 		}
 	}
 
-	static async download(uri: string) {
+	static async download(
+		uri: string,
+		extractor: keyof typeof compressing
+	) {
 		const outDir = resolve(extractorOutDir, parse(uri).name);
 
 		await ensureDir(outDir);
@@ -59,7 +81,7 @@ export class TarGZipExtractor extends Extractor {
 		});
 
 		const instance = new TarGZipExtractor(archivePath, outDir);
-		await instance.extract(archivePath, outDir);
+		await instance.extract(archivePath, outDir, extractor);
 
 		return instance;
 	}

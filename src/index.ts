@@ -79,7 +79,7 @@ const main = async () => {
 			} catch (e: any) {
 				console.error(
 					`${repo.full_name}: Failed to compile licenses for this project!`,
-					e.stack
+					e
 				);
 			}
 		}

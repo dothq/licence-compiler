@@ -108,7 +108,8 @@ export class NodeService extends DependencyService {
 			}
 
 			extractor = await TarGZipExtractor.download(
-				downloadTarballURI
+				downloadTarballURI,
+				"tgz"
 			);
 			packageJson = res.data;
 			packageJson.version = maxVersion;

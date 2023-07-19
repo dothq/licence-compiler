@@ -6,23 +6,26 @@ import { glob } from "glob";
 import { join } from "path";
 
 export class Extractor {
-	LICENSE_PATTERNS = ["**/LICENSE", "**/LICENSE.md"];
+	LICENSE_PATTERNS = ["**/LICENSE*", "**/LICENSE*.md"];
 
 	outDir = "";
 
 	public constructor() {}
 
 	public async locate() {
-		let matches: string[] = [];
+		let matches: any = new Set();
 
 		for (const PATTERN of this.LICENSE_PATTERNS) {
-			matches = matches.concat(
-				await glob(join(this.outDir, PATTERN), {
+			matches = new Set([
+				...matches,
+				...(await glob(join(this.outDir, PATTERN), {
 					nocase: true
-				})
-			);
+				}))
+			]);
 		}
 
-		return matches;
+		matches = Array.from(matches);
+
+		return matches as string[];
 	}
 }

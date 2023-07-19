@@ -3,10 +3,12 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import axios from "axios";
+import { readFile } from "fs/promises";
 import { join } from "path";
 import { maxSatisfying } from "semver";
 import { parse } from "toml";
 import { DependencyService, RemoteFile } from ".";
+import { GitExtractor } from "../extractors/git";
 import { TarGZipExtractor } from "../extractors/tar-gzip";
 import { getLicenseFileFromSPDX } from "../utils/spdx";
 
@@ -23,58 +25,92 @@ export class CargoService extends DependencyService {
 		let extractor;
 		let cargoToml;
 
-		const res = await axios.get(
-			`${registryURI}/api/v1/crates/${dep}/versions`
-		);
-		if (!res.data.versions) {
-			console.warn(
-				`No available versions for '${dep}@${ver}', skipping...`
+		if (ver.startsWith("git:")) {
+			const [repoURI, ref] = ver.split("git:")[1].split("#");
+
+			extractor = await GitExtractor.fetch(repoURI, ref);
+
+			const cargoTomlMatches = await extractor.getFile(
+				"Cargo.toml"
 			);
-			return [null, null];
-		}
 
-		const allVersions = res.data.versions.map((p: any) => p.num);
-		const maxVersion = maxSatisfying(allVersions, ver);
+			if (cargoTomlMatches[0]) {
+				const data = await readFile(
+					cargoTomlMatches[0],
+					"utf-8"
+				);
 
-		if (
-			!maxVersion ||
-			!res.data.versions.find((p: any) => p.num == maxVersion)
-		) {
-			console.warn(
-				`No available versions for '${dep}@${ver}', skipping...`
+				cargoToml = JSON.parse(data);
+			}
+		} else {
+			const res = await axios.get(
+				`${registryURI}/api/v1/crates/${dep}/versions`
 			);
-			return [null, null];
+			if (!res.data.versions) {
+				console.warn(
+					`No available versions for '${dep}@${ver}', skipping...`
+				);
+				return [null, null];
+			}
+
+			const allVersions = res.data.versions.map(
+				(p: any) => p.num
+			);
+			const maxVersion = maxSatisfying(allVersions, ver);
+
+			if (
+				!maxVersion ||
+				!res.data.versions.find(
+					(p: any) => p.num == maxVersion
+				)
+			) {
+				console.warn(
+					`No available versions for '${dep}@${ver}', skipping...`
+				);
+				return [null, null];
+			}
+
+			const versionedPackage = res.data.versions.find(
+				(p: any) => p.num == maxVersion
+			);
+
+			const downloadTarballURI = join(
+				registryURI,
+				versionedPackage.dl_path
+			);
+
+			const tarballURI = await axios.get(downloadTarballURI);
+
+			extractor = await TarGZipExtractor.download(
+				tarballURI.data.url,
+				"gzip"
+			);
+			cargoToml = versionedPackage;
 		}
-
-		const versionedPackage = res.data.versions.find(
-			(p: any) => p.num == maxVersion
-		);
-
-		const downloadTarballURI = versionedPackage.dl_path;
-
-		extractor = await TarGZipExtractor.download(
-			join(registryURI, downloadTarballURI)
-		);
-		cargoToml = res.data;
 
 		return [extractor, cargoToml];
 	}
 
 	private async processDependencies(
-		dependencies: Record<string, string | { version: string }>,
+		dependencies: Record<string, string | any>,
 		isDev?: boolean
 	) {
 		let licenses: Map<string, string[]> = new Map();
 
-		for await (const [dep, _ver] of Object.entries(
+		for await (const [dep, data] of Object.entries(
 			dependencies
 		)) {
-			const version =
-				typeof _ver == "string"
-					? _ver
-					: typeof _ver == "object"
-					? _ver.version
-					: null;
+			let version = "";
+
+			if (typeof data == "string") {
+				version = data;
+			} else if (typeof data == "object") {
+				if (data.git && data.rev) {
+					version = `git:${data.git}#${data.rev}`;
+				} else if (data.version) {
+					version = data.version;
+				}
+			}
 
 			if (!version)
 				throw new Error(
@@ -101,7 +137,7 @@ export class CargoService extends DependencyService {
 						await this._lookupPackage(uri, dep, version);
 					if (!extractor || !cargoToml) continue;
 
-					const licenseMatches = await extractor.locate();
+					let licenseMatches = await extractor.locate();
 
 					if (
 						licenseMatches.length == 0 &&
@@ -111,15 +147,31 @@ export class CargoService extends DependencyService {
 					) {
 						const spdxLicense = cargoToml.license;
 
-						try {
-							const licensePath =
-								await getLicenseFileFromSPDX(
-									spdxLicense
-								);
+						const licenses = spdxLicense.split("/");
 
-							licenseMatches.push(licensePath);
+						const newLics = [];
+						let pushedFullLicense = false;
+
+						try {
+							for (const spdxLic of licenses) {
+								const licensePath =
+									await getLicenseFileFromSPDX(
+										spdxLic
+									);
+
+								newLics.push(licensePath);
+							}
 						} catch (error) {
 							licenseMatches.push(spdxLicense);
+							pushedFullLicense = true;
+						}
+
+						if (
+							newLics.length &&
+							pushedFullLicense == false
+						) {
+							licenseMatches =
+								licenseMatches.concat(newLics);
 						}
 					}
 
@@ -167,5 +219,7 @@ export class CargoService extends DependencyService {
 
 			licenses = new Map([...licenses, ...devDepsMap]);
 		}
+
+		return licenses;
 	}
 }
