@@ -27,7 +27,7 @@ export const extractorOutDir = resolve(
 
 const repoDepsOutDir = resolve(
 	process.cwd(),
-	"dist"
+	"dep-data"
 )
 
 const main = async () => {

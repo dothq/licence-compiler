@@ -137,3 +137,5 @@ dist
 dist/
 
 .env
+
+dep-data
