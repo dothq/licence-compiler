@@ -17,6 +17,7 @@
     "js-levenshtein": "^1.1.6",
     "minimatch": "^9.0.3",
     "octokit": "^3.0.0",
+    "retry-axios": "^3.0.0",
     "rimraf": "^5.0.1",
     "semver": "^7.5.4",
     "shrink-string": "^3.1.7",

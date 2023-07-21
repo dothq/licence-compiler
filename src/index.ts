@@ -7,6 +7,7 @@ import { ensureDir } from "fs-extra";
 import { writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import { parse, resolve } from "path";
+import * as rax from "retry-axios";
 import { rimraf } from "rimraf";
 import { fetchSPDXData } from "./detectors";
 import { CargoService } from "./services/cargo";
@@ -24,6 +25,8 @@ const repoDepsOutDir = resolve(process.cwd(), "dep-data");
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const main = async () => {
+	rax.attach();
+
 	const octokit = getOctokit();
 
 	if (!process.env.GH_ORG) throw new Error("No GH_ORG provided");
