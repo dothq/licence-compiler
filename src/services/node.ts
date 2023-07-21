@@ -17,10 +17,16 @@ enum NPMPrefixes {
 const NPM_INSTALL_PREFIXES = [NPMPrefixes.GitHub];
 
 export class NodeService extends DependencyService {
-	public compile(treeSha: string) {
-		return super.compile(treeSha, "**/package.json", [
-			"**/node_modules"
-		]);
+	public compile(
+		licenseIndex: Map<string, string>,
+		treeSha: string
+	) {
+		return super.compile(
+			licenseIndex,
+			treeSha,
+			"**/package.json",
+			["**/node_modules"]
+		);
 	}
 
 	private async _lookupPackage(
@@ -118,6 +124,35 @@ export class NodeService extends DependencyService {
 		return [extractor, packageJson];
 	}
 
+	public async getKnownSPDXLicense(dep: {
+		name: string;
+		version: string;
+	}) {
+		for await (const uri of (
+			process.env.NPM_REGISTRY_URLS || ""
+		).split(",")) {
+			if (!uri || !uri.length) {
+				throw new Error("No NPM registry URLs provided.");
+			}
+
+			const [_, packageJson] = await this._lookupPackage(
+				uri,
+				dep.name,
+				dep.version
+			);
+
+			if (
+				packageJson &&
+				packageJson.license &&
+				typeof packageJson.license == "string"
+			) {
+				return packageJson.license;
+			}
+		}
+
+		return null;
+	}
+
 	private async processDependencies(
 		dependencies: Record<string, string>,
 		isDev?: boolean
@@ -127,7 +162,7 @@ export class NodeService extends DependencyService {
 		for await (const [dep, ver] of Object.entries(dependencies)) {
 			try {
 				console.log(
-					`            ${dep}@${ver}${
+					`                ${dep}@${ver}${
 						isDev ? " (dev)" : ""
 					}`
 				);

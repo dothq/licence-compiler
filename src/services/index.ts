@@ -8,6 +8,7 @@ import { readFile } from "fs/promises";
 import { minimatch } from "minimatch";
 import { Octokit } from "octokit";
 import { extractorOutDir } from "..";
+import { detectSPDXFromLicense } from "../detectors";
 
 export interface RemoteFile {
 	path: string;
@@ -27,6 +28,7 @@ export class DependencyService {
 	) {}
 
 	public async compile(
+		licenseIndex: Map<string, string>,
 		treeSha: string,
 		filePathGlob: string,
 		excludedGlobs?: string[]
@@ -84,7 +86,7 @@ export class DependencyService {
 				"base64"
 			);
 
-			console.log(`        /${match.path}`);
+			console.log(`            /${match.path}`);
 
 			const licenses = (await (this as any).process({
 				...match,
@@ -93,7 +95,9 @@ export class DependencyService {
 
 			const repositoryDependencies = [];
 
-			for (const [depWithVer, lics] of licenses) {
+			console.log("            SPDXDetector...");
+
+			for await (const [depWithVer, lics] of licenses) {
 				const data: {
 					dependency: {
 						name: string;
@@ -114,10 +118,11 @@ export class DependencyService {
 					licenses: []
 				};
 
-				for (const license of lics) {
+				for await (const license of lics) {
 					const depLicense = {
 						path: "",
-						data: ""
+						data: "",
+						spdx: ""
 					};
 
 					// We need to fetch the license data
@@ -128,6 +133,17 @@ export class DependencyService {
 
 						depLicense.data = res.data.toString("utf-8");
 						depLicense.path = "/";
+
+						const knownSPDXLicense = await (
+							this as any
+						).getKnownSPDXLicense(data.dependency);
+
+						depLicense.spdx = await detectSPDXFromLicense(
+							licenseIndex,
+							data.dependency.name,
+							depLicense.data,
+							knownSPDXLicense
+						);
 					} else if (existsSync(license)) {
 						// The license is already stored
 						const raw = await readFile(license, "utf-8");
@@ -148,11 +164,23 @@ export class DependencyService {
 						}
 
 						depLicense.path = relativePath;
+
+						const knownSPDXLicense = await (
+							this as any
+						).getKnownSPDXLicense(data.dependency);
+
+						depLicense.spdx = await detectSPDXFromLicense(
+							licenseIndex,
+							data.dependency.name,
+							depLicense.data,
+							knownSPDXLicense
+						);
 					} else {
 						console.warn(
 							`${this.owner}/${this.repo}: Unable to automatically obtain license information for '${data.dependency.name}' at '${license}', falling back to package provided license field.`
 						);
 						depLicense.data = license;
+						depLicense.spdx = license;
 						depLicense.path = "/";
 					}
 

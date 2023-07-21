@@ -8,6 +8,7 @@ import { writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import { parse, resolve } from "path";
 import { rimraf } from "rimraf";
+import { fetchSPDXData } from "./detectors";
 import { CargoService } from "./services/cargo";
 import { NodeService } from "./services/node";
 import { getOctokit } from "./utils/github";
@@ -19,6 +20,8 @@ const services = [NodeService, CargoService];
 export const extractorOutDir = resolve(tmpdir(), "license-compiler");
 
 const repoDepsOutDir = resolve(process.cwd(), "dep-data");
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const main = async () => {
 	const octokit = getOctokit();
@@ -51,6 +54,9 @@ const main = async () => {
 
 	const data: Record<string, any[]> = {};
 
+	console.log("Updating SPDX database definitions...");
+	const licenseIndex = await fetchSPDXData();
+
 	var i = 0;
 	for (const repo of repos) {
 		i++;
@@ -60,8 +66,12 @@ const main = async () => {
 
 		data[repo.full_name] = [];
 
+		console.log("    Jobs:");
+
 		for await (const service of services) {
-			console.log(`    ${service.name}...`);
+			console.log(`        ${service.name}...`);
+
+			await sleep(1000);
 
 			const Service = new service(
 				octokit,
@@ -71,6 +81,7 @@ const main = async () => {
 
 			try {
 				const metadata = await Service.compile(
+					licenseIndex,
 					repo.default_branch || "main"
 				);
 

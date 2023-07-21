@@ -13,8 +13,11 @@ import { TarGZipExtractor } from "../extractors/tar-gzip";
 import { getLicenseFileFromSPDX } from "../utils/spdx";
 
 export class CargoService extends DependencyService {
-	public compile(treeSha: string) {
-		return super.compile(treeSha, "**/Cargo.toml");
+	public compile(
+		licenseIndex: Map<string, string>,
+		treeSha: string
+	) {
+		return super.compile(licenseIndex, treeSha, "**/Cargo.toml");
 	}
 
 	private async _lookupPackage(
@@ -91,6 +94,35 @@ export class CargoService extends DependencyService {
 		return [extractor, cargoToml];
 	}
 
+	public async getKnownSPDXLicense(dep: {
+		name: string;
+		version: string;
+	}) {
+		for await (const uri of (
+			process.env.CRATES_REGISTRY_URLS || ""
+		).split(",")) {
+			if (!uri || !uri.length) {
+				throw new Error("No Crates registry URLs provided.");
+			}
+
+			const [_, cargoToml] = await this._lookupPackage(
+				uri,
+				dep.name,
+				dep.version
+			);
+
+			if (
+				cargoToml &&
+				cargoToml.license &&
+				typeof cargoToml.license == "string"
+			) {
+				return cargoToml.license;
+			}
+		}
+
+		return null;
+	}
+
 	private async processDependencies(
 		dependencies: Record<string, string | any>,
 		isDev?: boolean
@@ -121,7 +153,7 @@ export class CargoService extends DependencyService {
 
 			try {
 				console.log(
-					`            ${dep}@${version}${
+					`                ${dep}@${version}${
 						isDev ? " (dev)" : ""
 					}`
 				);
