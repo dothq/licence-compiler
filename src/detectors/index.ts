@@ -237,7 +237,7 @@ export const detectSPDXFromLicense = async (
 				`                ${pkg}: ${nearestMatch}\n`
 			);
 		} else {
-			console.log(`                ${pkg}: ${nearestMatch}\n`);
+			console.log(`                ${pkg}: ${nearestMatch}`);
 		}
 
 	licenseCache.set(`${service}--${pkg}@${ver}`, nearestMatch);
