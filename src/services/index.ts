@@ -140,7 +140,9 @@ export class DependencyService {
 
 						depLicense.spdx = await detectSPDXFromLicense(
 							licenseIndex,
+							this.constructor.name,
 							data.dependency.name,
+							data.dependency.version,
 							depLicense.data,
 							knownSPDXLicense
 						);
@@ -171,7 +173,9 @@ export class DependencyService {
 
 						depLicense.spdx = await detectSPDXFromLicense(
 							licenseIndex,
+							this.constructor.name,
 							data.dependency.name,
+							data.dependency.version,
 							depLicense.data,
 							knownSPDXLicense
 						);

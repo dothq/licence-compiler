@@ -150,12 +150,20 @@ export const fetchSPDXData = async () => {
 // Higher the number, the higher the accuracy
 export const LICENSE_LINES_CUT_OFF = 50;
 
+const licenseCache = new Map();
+
 export const detectSPDXFromLicense = async (
 	licenseIndex: Map<string, string>,
+	service: string,
 	pkg: string,
+	ver: string,
 	license: string,
 	knownSPDXLicense?: string
 ) => {
+	if (licenseCache.get(`${service}--${pkg}@${ver}`)) {
+		return licenseCache.get(`${service}--${pkg}@${ver}`);
+	}
+
 	if (license.split("\n").length >= LICENSE_LINES_CUT_OFF) {
 		console.warn(
 			`                warn: License for '${pkg}' is being limited to the first ${LICENSE_LINES_CUT_OFF} lines due to length.`
@@ -231,6 +239,8 @@ export const detectSPDXFromLicense = async (
 		} else {
 			console.log(`                ${pkg}: ${nearestMatch}\n`);
 		}
+
+	licenseCache.set(`${service}--${pkg}@${ver}`, nearestMatch);
 
 	return nearestMatch;
 };
