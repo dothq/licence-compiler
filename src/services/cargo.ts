@@ -10,7 +10,6 @@ import toml, { parse } from "toml";
 import { DependencyService, RemoteFile } from ".";
 import { GitExtractor } from "../extractors/git";
 import { TarGZipExtractor } from "../extractors/tar-gzip";
-import { getLicenseFileFromSPDX } from "../utils/spdx";
 
 export class CargoService extends DependencyService {
 	public compile(
@@ -146,93 +145,11 @@ export class CargoService extends DependencyService {
 				}
 			}
 
-			if (!version)
-				throw new Error(
-					`Unable to parse version for crate '${dep}'.`
-				);
-
-			try {
-				console.log(
-					`                ${dep}@${version}${
-						isDev ? " (dev)" : ""
-					}`
-				);
-
-				for await (const uri of (
-					process.env.CRATES_REGISTRY_URLS || ""
-				).split(",")) {
-					if (!uri || !uri.length) {
-						throw new Error(
-							"No Crates registry URLs provided."
-						);
-					}
-
-					const [extractor, cargoToml] =
-						await this._lookupPackage(uri, dep, version);
-					if (!extractor || !cargoToml) continue;
-
-					let licenseMatches = await extractor.locate();
-
-					if (
-						licenseMatches.length == 0 &&
-						cargoToml &&
-						cargoToml.license &&
-						typeof cargoToml.license == "string"
-					) {
-						const spdxLicense = cargoToml.license;
-
-						let licenses: string[] = [spdxLicense];
-
-						if (spdxLicense.includes("/")) {
-							licenses = spdxLicense.split("/");
-						} else if (spdxLicense.includes(" or ")) {
-							licenses = spdxLicense.split(" or ");
-						} else if (spdxLicense.includes(" OR ")) {
-							licenses = spdxLicense.split(" OR ");
-						}
-
-						const newLics = [];
-						let pushedFullLicense = false;
-
-						try {
-							for (const spdxLic of licenses) {
-								const licensePath =
-									await getLicenseFileFromSPDX(
-										spdxLic
-									);
-
-								newLics.push(licensePath);
-							}
-						} catch (error) {
-							licenseMatches.push(spdxLicense);
-							pushedFullLicense = true;
-						}
-
-						if (
-							newLics.length &&
-							pushedFullLicense == false
-						) {
-							licenseMatches =
-								licenseMatches.concat(newLics);
-						}
-					}
-
-					licenses.set(
-						`${dep}@${cargoToml.version || version}`,
-						(
-							licenses.get(
-								`${dep}@${
-									cargoToml.version || version
-								}`
-							) || []
-						).concat(licenseMatches)
-					);
-				}
-			} catch (e) {
+			if (!version) {
 				console.error(
-					`Failed to obtain package information for '${dep}@${version}'.`
+					`Unable to parse version for crate '${dep}', skipping...`
 				);
-				throw e;
+				continue;
 			}
 		}
 
