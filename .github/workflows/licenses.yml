@@ -11,7 +11,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v3
-
+            
             - name: Install dependencies
               run: yarn
 
@@ -28,21 +28,23 @@ jobs:
 
             - uses: actions/checkout@v3
               with:
+                  token: ${{ secrets.ROBOT_TOKEN }}
                   repository: ${{ github.repository_owner }}/third-party-licences
-                  path: third-party-licenses
+                  path: third-party-licences
 
             - name: Update dependency metadata
-              working-directory: third-party-licenses
+              working-directory: third-party-licences
               run: |
                   rm -rf ./data
                   mv ../dep-data ./data
                   git add data
 
-            - name: Commit & Push changes
+            - name: Commit and push changes
               uses: actions-js/push@master
               with:
                   github_token: ${{ secrets.ROBOT_TOKEN }}
+                  repository: ${{ github.repository_owner }}/third-party-licences
                   author_email: dothq-robot@users.noreply.github.com
                   author_name: dothq-robot
                   message: "📄 Update license data"
-                  directory: third-party-licenses
+                  directory: third-party-licences
