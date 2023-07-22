@@ -126,7 +126,13 @@ export class DependencyService {
 					};
 
 					// We need to fetch the license data
-					if (license.startsWith("http")) {
+					if (
+						license.startsWith("http") &&
+						// this is needed so we don't end up fetching any-old URL people include in the license
+						license.startsWith(
+							"https://raw.githubusercontent.com/spdx/license-list-data/main/text/"
+						)
+					) {
 						const res = await axios.get(license, {
 							responseType: "arraybuffer"
 						});
